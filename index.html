@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recherche des Risques Géologiques</title>
+
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      background-color: #e6f0ff;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: white;
+      padding: 10px 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    header img {
+      height: 60px;
+    }
+
+    h1 {
+      color: #003366;
+    }
+
+    .search-container {
+      margin: 50px auto;
+      width: 50%;
+      position: relative;
+    }
+
+    #address {
+      width: 100%;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      transition: all 0.3s ease;
+    }
+
+    #address.expanded {
+      border-radius: 10px 10px 0 0;
+    }
+
+    #autocomplete-list {
+      border: 1px solid #ccc;
+      border-top: none;
+      max-height: 150px;
+      overflow-y: auto;
+      background: #ffffff;
+      width: 100%;
+      position: absolute;
+      z-index: 10;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .result-box {
+      padding: 15px;
+      background: #ffcc99;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 200px;
+    }
+
+    footer {
+      background-color: #003366;
+      color: white;
+      padding: 10px 20px;
+      text-align: left;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+    }
+
+    button {
+      background-color: #003366;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #00509e;
+    }
+  </style>
+
+  <script>
+    async function fetchLocation(address) {
+      const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(address)}`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.features.length > 0) {
+          const feature = data.features[0];
+          return {
+            inseeCode: feature.properties.citycode,
+            lat: feature.geometry.coordinates[1],
+            lon: feature.geometry.coordinates[0]
+          };
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des coordonnées :", error);
+      }
+      return null;
+    }
+
+    async function fetchRadonRisk(inseeCode) {
+      const url = `https://georisques.gouv.fr/api/v1/radon?code_insee=${inseeCode}`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.data.length > 0) {
+          return data.data[0].classe_potentiel;
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération du risque radon :", error);
+      }
+      return "Non disponible";
+    }
+
+    async function fetchClayRisk(lat, lon) {
+      const url = `https://georisques.gouv.fr/api/v1/rga?latlon=${lon},${lat}`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        return data.exposition || "Non disponible";
+      } catch (error) {
+        console.error("Erreur lors de la récupération du risque de retrait-gonflement des argiles :", error);
+      }
+      return "Non disponible";
+    }
+
+    async function fetchSeismicRisk(lat, lon) {
+      const url = `https://georisques.gouv.fr/api/v1/zonage_sismique?latlon=${lon},${lat}`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.data.length > 0) {
+          return data.data[0].zone_sismicite;
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération du risque sismique :", error);
+      }
+      return "Non disponible";
+    }
+
+    async function fetchAltitude(lat, lon) {
+      const url = `https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${lon}&lat=${lat}&resource=ign_rge_alti_wld`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        if (data.elevations && data.elevations.length > 0) {
+          return data.elevations[0].z.toFixed(2) + " m";
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération de l'altitude :", error);
+      }
+      return "Non disponible";
+    }
+
+    async function searchRisks() {
+      const address = document.getElementById("address").value;
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "Recherche en cours...";
+
+      const locationData = await fetchLocation(address);
+      if (!locationData) {
+        resultDiv.innerHTML = "Impossible de trouver les informations pour cette adresse.";
+        return;
+      }
+
+      const radonRisk = await fetchRadonRisk(locationData.inseeCode);
+      const clayRisk = await fetchClayRisk(locationData.lat, locationData.lon);
+      const seismicRisk = await fetchSeismicRisk(locationData.lat, locationData.lon);
+      const altitude = await fetchAltitude(locationData.lat, locationData.lon);
+
+      resultDiv.innerHTML = `
+        <div class="result-container">
+          <div class="result-box">Potentiel radon: <strong>${radonRisk}</strong></div>
+          <div class="result-box">Risque argiles: <strong>${clayRisk}</strong></div>
+          <div class="result-box">Zone sismicité: <strong>${seismicRisk}</strong></div>
+          <div class="result-box">Altitude: <strong>${altitude}</strong></div>
+        </div>
+      `;
+    }
+
+    async function autocompleteAddress() {
+      const input = document.getElementById("address");
+      const list = document.getElementById("autocomplete-list");
+      const query = input.value;
+
+      if (query.length < 3) {
+        list.innerHTML = "";
+        input.classList.remove("expanded");
+        return;
+      }
+
+      input.classList.add("expanded");
+      const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}`;
+      try {
+        let response = await fetch(url);
+        let data = await response.json();
+        list.innerHTML = "";
+
+        data.features.forEach(feature => {
+          const option = document.createElement("div");
+          option.innerText = feature.properties.label;
+          option.onclick = function () {
+            input.value = feature.properties.label;
+            list.innerHTML = "";
+            input.classList.remove("expanded");
+          };
+          list.appendChild(option);
+        });
+      } catch (error) {
+        console.error("Erreur lors de la récupération des suggestions d'adresse :", error);
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <header>
+    <img src="enise-logo.png" alt="Logo ENISE" />
+    <h1>Recherche des Risques Géologiques</h1>
+    <img src="socotec-logo.png" alt="Logo SOCOTEC" />
+  </header>
+
+  <div class="search-container">
+    <input type="text" id="address" placeholder="Entrez une adresse" onkeyup="autocompleteAddress()">
+    <div id="autocomplete-list"></div>
+  </div>
+
+  <button onclick="searchRisks()">Rechercher</button>
+  <div id="result"></div>
+
+  <footer>
+    Projet PFE Makeda Yaregal
+  </footer>
+</body>
+</html>
