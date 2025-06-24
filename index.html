@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Recherche des Risques Géologiques</title>
+  <script src="zone-data.js"></script>
 
   <style>
     body {
@@ -102,6 +103,23 @@
   </style>
 
   <script>
+    async function searchZoneData(postalCode) {
+      for (let i = 1; i < parsedCsvData.length; i++) { // skip header
+        if (parseInt(parsedCsvData[i][0].trim()) === parseInt(postalCode)) { // Column A
+          const zoneNeige = parsedCsvData[i][8]; // Column I
+          const zoneVent = parsedCsvData[i][13]; // Column N
+            return {
+              zoneNeige: zoneNeige,
+              zoneVent: zoneVent
+            }
+          }
+      }
+      return {
+        zoneNeige: "Indisponible",
+        zoneVent: "Indisponible"
+      }
+    }
+
     async function fetchLocation(address) {
       const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(address)}`;
       try {
@@ -110,6 +128,7 @@
         if (data.features.length > 0) {
           const feature = data.features[0];
           return {
+            postcode: feature.properties.postcode,
             inseeCode: feature.properties.citycode,
             lat: feature.geometry.coordinates[1],
             lon: feature.geometry.coordinates[0]
@@ -190,6 +209,7 @@
       const clayRisk = await fetchClayRisk(locationData.lat, locationData.lon);
       const seismicRisk = await fetchSeismicRisk(locationData.lat, locationData.lon);
       const altitude = await fetchAltitude(locationData.lat, locationData.lon);
+      const fetchZoneData = await searchZoneData(locationData.postcode);
 
       resultDiv.innerHTML = `
         <div class="result-container">
@@ -197,6 +217,8 @@
           <div class="result-box">Risque argiles: <strong>${clayRisk}</strong></div>
           <div class="result-box">Zone sismicité: <strong>${seismicRisk}</strong></div>
           <div class="result-box">Altitude: <strong>${altitude}</strong></div>
+          <div class="result-box">Zone de neige: <strong>${fetchZoneData.zoneNeige}</strong></div>
+          <div class="result-box">Zone de vent: <strong>${fetchZoneData.zoneVent}</strong></div>
         </div>
       `;
     }
