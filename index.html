@@ -106,8 +106,8 @@
     async function searchZoneData(postalCode) {
       for (let i = 1; i < parsedCsvData.length; i++) { // skip header
         if (parseInt(parsedCsvData[i][0].trim()) === parseInt(postalCode)) { // Column A
-          const zoneNeige = parsedCsvData[i][8]; // Column I
-          const zoneVent = parsedCsvData[i][13]; // Column N
+          const zoneNeige = parsedCsvData[i][8]; // Column G
+          const zoneVent = parsedCsvData[i][13]; // Column F
             return {
               zoneNeige: zoneNeige,
               zoneVent: zoneVent
@@ -278,3 +278,4 @@
   </footer>
 </body>
 </html>
+
