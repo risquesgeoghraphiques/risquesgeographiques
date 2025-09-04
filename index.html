@@ -105,7 +105,7 @@
   <script>
     async function searchZoneData(postalCode) {
       for (let i = 1; i < parsedCsvData.length; i++) { // skip header
-        if (parseInt(parsedCsvData[i][0].trim()) === parseInt(postalCode)) { // Column A
+        if (parseInt(parsedCsvData[i][2].trim()) === parseInt(inseeCode)) { // Column C
           const zoneNeige = parsedCsvData[i][6]; // Column G
           const zoneVent = parsedCsvData[i][5]; // Column F
             return {
@@ -209,7 +209,7 @@
       const clayRisk = await fetchClayRisk(locationData.lat, locationData.lon);
       const seismicRisk = await fetchSeismicRisk(locationData.lat, locationData.lon);
       const altitude = await fetchAltitude(locationData.lat, locationData.lon);
-      const fetchZoneData = await searchZoneData(locationData.postcode);
+      const fetchZoneData = await searchZoneData(locationData.inseeCode);
 
       resultDiv.innerHTML = `
         <div class="result-container">
@@ -278,6 +278,7 @@
   </footer>
 </body>
 </html>
+
 
 
 
